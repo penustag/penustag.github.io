@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Account Portal</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #1a1d24;
+    --text: #e8e8ec;
+    --muted: #9aa0ad;
+    --accent: #5b8cff;
+    --ok: #3ddc84;
+    --bad: #ff5a5a;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f4f5f7;
+      --card: #ffffff;
+      --text: #1a1d24;
+      --muted: #666b75;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 480px;
+    width: 100%;
+  }
+  h1 { margin-top: 0; font-size: 1.3rem; }
+  .server {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+  }
+  .up { background: var(--ok); }
+  .down { background: var(--bad); }
+  code {
+    background: rgba(128, 128, 128, 0.15);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .muted { color: var(--muted); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Server Status</h1>
+    <div id="servers">Loading...</div>
+    <p class="muted">
+      Register your account in Discord with <code>/register</code> (or <code>.register</code>),
+      then log in in-game with that same username and password.
+    </p>
+  </div>
+
+<script>
+  // Point this at your backend's public address (the one from /backend).
+  const BACKEND_URL = "http://127.0.0.1:5000";
+
+  fetch(BACKEND_URL + "/api/status")
+    .then(r => r.json())
+    .then(data => {
+      const el = document.getElementById("servers");
+      el.innerHTML = "";
+      (data.servers || []).forEach(s => {
+        const row = document.createElement("div");
+        row.className = "server";
+        row.innerHTML =
+          '<span><span class="dot ' + (s.online ? "up" : "down") + '"></span>' + s.name + "</span>" +
+          "<span>" + (s.online ? "Online" : "Offline") + "</span>";
+        el.appendChild(row);
+      });
+      if (!data.servers || data.servers.length === 0) {
+        el.textContent = "No servers configured.";
+      }
+    })
+    .catch(() => {
+      document.getElementById("servers").textContent = "Couldn't reach the backend.";
+    });
+</script>
+</body>
+</html>
