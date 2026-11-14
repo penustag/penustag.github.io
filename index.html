@@ -129,7 +129,7 @@
     text-align: center;
   }
 
-  /* ========== LOADING ========== */
+  /* ========== LOADING + MUSIC PICKER ========== */
   #loading-view {
     display: none;
     position: fixed;
@@ -139,7 +139,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 18px;
+    gap: 16px;
+    padding: 20px;
   }
 
   #loading-view.active { display: flex; }
@@ -163,21 +164,60 @@
   .loading-sub {
     font-size: 0.88rem;
     color: var(--text-dim);
+    text-align: center;
   }
 
-  .music-btn {
+  .music-box {
     margin-top: 12px;
-    background: var(--accent);
-    border: none;
-    color: #fff;
-    padding: 10px 22px;
-    border-radius: 10px;
-    font-size: 0.95rem;
-    cursor: pointer;
-    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 22px;
+    text-align: center;
+    max-width: 340px;
+    width: 100%;
   }
 
-  .music-btn.show { display: inline-block; }
+  .music-box p {
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+
+  .music-name {
+    font-size: 0.95rem;
+    color: var(--accent);
+    margin-bottom: 14px;
+    word-break: break-all;
+  }
+
+  .file-label {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .file-label:hover { background: var(--accent-hover); }
+
+  #musicFile { display: none; }
+
+  .skip-btn {
+    margin-top: 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .skip-btn:hover { border-color: #444; color: var(--text); }
 
   /* ========== GAMES ========== */
   #games-view {
@@ -248,6 +288,24 @@
     border-color: var(--accent);
     color: #fff;
   }
+
+  .header-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .change-music-btn {
+    background: #1a1a1a;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  .change-music-btn:hover { color: var(--text); border-color: #444; }
 
   main {
     max-width: 1400px;
@@ -468,12 +526,20 @@
   <div class="footer-note">Made for students • Works offline</div>
 </div>
 
-<!-- LOADING -->
+<!-- LOADING + MUSIC PICKER -->
 <div id="loading-view">
-  <div class="loader"></div>
-  <div class="loading-text">Loading educational resources…</div>
-  <div class="loading-sub">Just a moment</div>
-  <button class="music-btn" id="enableMusicBtn">Enable Music</button>
+  <div class="loader" id="loader"></div>
+  <div class="loading-text" id="loadingText">Loading educational resources…</div>
+  <div class="loading-sub" id="loadingSub">Just a moment</div>
+
+  <div class="music-box" id="musicBox" style="display:none;">
+    <p>Choose background music (saved for next time)</p>
+    <div class="music-name" id="savedMusicName" style="display:none;"></div>
+    <label class="file-label" for="musicFile">Select Audio File</label>
+    <input type="file" id="musicFile" accept="audio/*">
+    <br>
+    <button class="skip-btn" id="skipMusicBtn">Continue without music</button>
+  </div>
 </div>
 
 <!-- GAMES -->
@@ -491,6 +557,9 @@
       <button class="cat-btn" data-cat="sports">Sports</button>
       <button class="cat-btn" data-cat="multiplayer">Multi</button>
       <button class="cat-btn" data-cat="arcade">Arcade</button>
+    </div>
+    <div class="header-right">
+      <button class="change-music-btn" id="changeMusicBtn">Change Music</button>
     </div>
   </header>
 
@@ -516,12 +585,58 @@
   </div>
 </div>
 
-<!-- Music - exact filename -->
-<audio id="bgMusic" loop preload="auto">
-  <source src="Mirrors%20(Bass%20Boosted%20Edit).mp3" type="audio/mpeg">
-</audio>
+<audio id="bgMusic" loop></audio>
 
 <script>
+  // ===================== INDEXEDDB FOR MUSIC =====================
+  const DB_NAME = 'StudyCalcMusic';
+  const STORE = 'tracks';
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE)) {
+          db.createObjectStore(STORE);
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function saveTrack(file) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      const store = tx.objectStore(STORE);
+      store.put({ name: file.name, blob: file }, 'current');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async function loadTrack() {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const store = tx.objectStore(STORE);
+      const req = store.get('current');
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  }
+
+  async function clearTrack() {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete('current');
+      tx.oncomplete = () => resolve();
+    });
+  }
+
   // ===================== CALCULATOR =====================
   const expressionEl = document.getElementById('expression');
   const resultEl = document.getElementById('result');
@@ -559,7 +674,6 @@
       expression = current;
     }
 
-    // replace trailing operator
     if (/[+\-*/]$/.test(expression)) {
       expression = expression.slice(0, -1) + op;
     } else {
@@ -576,14 +690,12 @@
       .replace(/÷/g, '/')
       .replace(/−/g, '-');
 
-    // SECRET
     if (full.replace(/\s/g, '') === '531800+1') {
       unlockGames();
       return;
     }
 
     try {
-      // safe-ish eval
       let result = Function('"use strict";return (' + full + ')')();
       if (!isFinite(result)) throw new Error();
       expression = full + ' =';
@@ -641,36 +753,94 @@
     else if (e.key === 'Escape' || e.key.toLowerCase() === 'c') clearAll();
   });
 
-  // ===================== UNLOCK + MUSIC =====================
+  // ===================== MUSIC + UNLOCK =====================
   const music = document.getElementById('bgMusic');
   music.volume = 0.5;
 
-  function tryPlayMusic() {
-    return music.play().then(() => true).catch(() => false);
+  let currentObjectURL = null;
+
+  function setMusicFromBlob(blob, name) {
+    if (currentObjectURL) URL.revokeObjectURL(currentObjectURL);
+    currentObjectURL = URL.createObjectURL(blob);
+    music.src = currentObjectURL;
+    return music.play().catch(() => {});
   }
 
-  function unlockGames() {
+  async function unlockGames() {
     document.getElementById('calc-view').style.display = 'none';
     const loading = document.getElementById('loading-view');
+    const loader = document.getElementById('loader');
+    const loadingText = document.getElementById('loadingText');
+    const loadingSub = document.getElementById('loadingSub');
+    const musicBox = document.getElementById('musicBox');
+    const savedNameEl = document.getElementById('savedMusicName');
+
     loading.classList.add('active');
 
-    const musicBtn = document.getElementById('enableMusicBtn');
+    // Check if we already have a saved track
+    const saved = await loadTrack();
 
-    tryPlayMusic().then(ok => {
-      if (!ok) musicBtn.classList.add('show');
-    });
+    if (saved && saved.blob) {
+      // We have a remembered track → play it and continue
+      loadingText.textContent = 'Loading educational resources…';
+      loadingSub.textContent = 'Playing: ' + saved.name;
+      await setMusicFromBlob(saved.blob, saved.name);
 
-    musicBtn.onclick = () => {
-      tryPlayMusic();
-      musicBtn.classList.remove('show');
-    };
-
-    setTimeout(() => {
-      loading.classList.remove('active');
-      document.getElementById('games-view').classList.add('active');
-      renderGames();
-    }, 2800);
+      setTimeout(() => {
+        loading.classList.remove('active');
+        document.getElementById('games-view').classList.add('active');
+        renderGames();
+      }, 2200);
+    } else {
+      // No saved track → show picker
+      loader.style.display = 'none';
+      loadingText.textContent = 'Almost ready';
+      loadingSub.textContent = 'Pick some music (optional)';
+      musicBox.style.display = 'block';
+    }
   }
+
+  // File picker
+  document.getElementById('musicFile').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    await saveTrack(file);
+    await setMusicFromBlob(file, file.name);
+
+    // Continue to games
+    document.getElementById('loading-view').classList.remove('active');
+    document.getElementById('games-view').classList.add('active');
+    renderGames();
+  });
+
+  // Skip music
+  document.getElementById('skipMusicBtn').addEventListener('click', () => {
+    document.getElementById('loading-view').classList.remove('active');
+    document.getElementById('games-view').classList.add('active');
+    renderGames();
+  });
+
+  // Change music button (from games header)
+  document.getElementById('changeMusicBtn').addEventListener('click', async () => {
+    // Clear current and force picker again
+    await clearTrack();
+    if (currentObjectURL) {
+      URL.revokeObjectURL(currentObjectURL);
+      currentObjectURL = null;
+    }
+    music.removeAttribute('src');
+    music.load();
+
+    // Show the loading/picker view again
+    document.getElementById('games-view').classList.remove('active');
+    const loading = document.getElementById('loading-view');
+    document.getElementById('loader').style.display = 'none';
+    document.getElementById('loadingText').textContent = 'Change Music';
+    document.getElementById('loadingSub').textContent = 'Select a new track';
+    document.getElementById('musicBox').style.display = 'block';
+    loading.classList.add('active');
+  });
 
   // ===================== GAMES =====================
   const games = [
