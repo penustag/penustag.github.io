@@ -1,102 +1,748 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Account Portal</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StudyCalc • Homework Helper</title>
 <style>
-  :root {
-    --bg: #0f1115;
-    --card: #1a1d24;
-    --text: #e8e8ec;
-    --muted: #9aa0ad;
-    --accent: #5b8cff;
-    --ok: #3ddc84;
-    --bad: #ff5a5a;
-  }
-  @media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) {
-      --bg: #f4f5f7;
-      --card: #ffffff;
-      --text: #1a1d24;
-      --muted: #666b75;
-    }
-  }
-  * { box-sizing: border-box; }
-  body {
+  * {
     margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface2: #161616;
+    --border: #222222;
+    --text: #f2f2f7;
+    --text-dim: #a0a0a8;
+    --accent: #8b5cf6;
+    --accent-hover: #7c3aed;
+  }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     background: var(--bg);
     color: var(--text);
-    font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ========== CALCULATOR VIEW ========== */
+  #calc-view {
     display: flex;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
-    padding: 40px 16px;
+    min-height: 100vh;
+    padding: 20px;
   }
-  .card {
-    background: var(--card);
-    border-radius: 12px;
-    padding: 24px;
-    max-width: 480px;
+
+  .calc-header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  .calc-header h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  .calc-header p {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    margin-top: 6px;
+  }
+
+  .calculator {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 22px;
     width: 100%;
+    max-width: 340px;
+    box-shadow: 0 20px 50px -15px #000000aa;
   }
-  h1 { margin-top: 0; font-size: 1.3rem; }
-  .server {
+
+  .display {
+    background: #050505;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 16px;
+    text-align: right;
+    margin-bottom: 18px;
+    min-height: 70px;
     display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+    flex-direction: column;
+    justify-content: flex-end;
   }
-  .dot {
-    width: 10px;
-    height: 10px;
+
+  .expression {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    min-height: 18px;
+    word-break: break-all;
+  }
+
+  .result {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--text);
+    word-break: break-all;
+  }
+
+  .buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+
+  .btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 1.25rem;
+    font-weight: 500;
+    height: 58px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.12s;
+    user-select: none;
+  }
+
+  .btn:hover {
+    background: #1c1c1c;
+  }
+
+  .btn:active {
+    transform: scale(0.96);
+  }
+
+  .btn.op {
+    background: #1a1a1a;
+    color: var(--accent);
+  }
+
+  .btn.equals {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  .btn.equals:hover {
+    background: var(--accent-hover);
+  }
+
+  .btn.zero {
+    grid-column: span 2;
+  }
+
+  .btn.clear {
+    color: #f87171;
+  }
+
+  .footer-note {
+    margin-top: 22px;
+    font-size: 0.78rem;
+    color: #555;
+    text-align: center;
+  }
+
+  /* ========== LOADING SCREEN ========== */
+  #loading-view {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 2000;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+  }
+
+  #loading-view.active {
+    display: flex;
+  }
+
+  .loader {
+    width: 52px;
+    height: 52px;
+    border: 3px solid #222;
+    border-top-color: var(--accent);
     border-radius: 50%;
-    display: inline-block;
-    margin-right: 8px;
+    animation: spin 0.8s linear infinite;
   }
-  .up { background: var(--ok); }
-  .down { background: var(--bad); }
-  code {
-    background: rgba(128, 128, 128, 0.15);
-    padding: 2px 6px;
-    border-radius: 4px;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
-  .muted { color: var(--muted); font-size: 0.9rem; }
+
+  .loading-text {
+    font-size: 1.15rem;
+    color: var(--text);
+    letter-spacing: 0.3px;
+  }
+
+  .loading-sub {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+  }
+
+  /* ========== GAMES VIEW ========== */
+  #games-view {
+    display: none;
+    min-height: 100vh;
+  }
+
+  #games-view.active {
+    display: block;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 22px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+
+  .logo {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .search-box {
+    flex: 1;
+    min-width: 180px;
+    max-width: 380px;
+  }
+
+  .search-box input {
+    width: 100%;
+    background: #0d0d0d;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 14px;
+    color: var(--text);
+    font-size: 0.92rem;
+    outline: none;
+  }
+
+  .search-box input:focus {
+    border-color: var(--accent);
+  }
+
+  .categories {
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+
+  .cat-btn {
+    background: #141414;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 6px 13px;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .cat-btn:hover,
+  .cat-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px 18px 60px;
+  }
+
+  .games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 18px;
+  }
+
+  .game-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.18s, border-color 0.18s;
+  }
+
+  .game-card:hover {
+    transform: translateY(-3px);
+    border-color: #8b5cf655;
+  }
+
+  .game-thumb {
+    width: 100%;
+    height: 130px;
+    object-fit: cover;
+    background: #1a1a1a;
+    display: block;
+  }
+
+  .game-info {
+    padding: 12px 14px 14px;
+  }
+
+  .game-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .game-cat {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-top: 3px;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: #000000dd;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 16px;
+  }
+
+  .modal-overlay.open {
+    display: flex;
+  }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 1100px;
+    height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    background: #0d0d0d;
+  }
+
+  .modal-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .modal-btn {
+    background: #1a1a1a;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+
+  .modal-btn:hover {
+    background: #222;
+  }
+
+  .modal-btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .modal-body {
+    flex: 1;
+    background: #000;
+  }
+
+  .modal-body iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+
+  .no-results {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--text-dim);
+  }
+
+  @media (max-width: 500px) {
+    .games-grid {
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
+    .game-thumb { height: 100px; }
+  }
 </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Server Status</h1>
-    <div id="servers">Loading...</div>
-    <p class="muted">
-      Register your account in Discord with <code>/register</code> (or <code>.register</code>),
-      then log in in-game with that same username and password.
-    </p>
+
+<!-- ========== CALCULATOR ========== -->
+<div id="calc-view">
+  <div class="calc-header">
+    <h1>StudyCalc</h1>
+    <p>Quick math for homework & class</p>
   </div>
 
-<script>
-  // Point this at your backend's public address (the one from /backend).
-  const BACKEND_URL = "http://127.0.0.1:5000";
+  <div class="calculator">
+    <div class="display">
+      <div class="expression" id="expression"></div>
+      <div class="result" id="result">0</div>
+    </div>
 
-  fetch(BACKEND_URL + "/api/status")
-    .then(r => r.json())
-    .then(data => {
-      const el = document.getElementById("servers");
-      el.innerHTML = "";
-      (data.servers || []).forEach(s => {
-        const row = document.createElement("div");
-        row.className = "server";
-        row.innerHTML =
-          '<span><span class="dot ' + (s.online ? "up" : "down") + '"></span>' + s.name + "</span>" +
-          "<span>" + (s.online ? "Online" : "Offline") + "</span>";
-        el.appendChild(row);
-      });
-      if (!data.servers || data.servers.length === 0) {
-        el.textContent = "No servers configured.";
-      }
-    })
-    .catch(() => {
-      document.getElementById("servers").textContent = "Couldn't reach the backend.";
+    <div class="buttons">
+      <button class="btn clear" data-action="clear">C</button>
+      <button class="btn op" data-action="back">⌫</button>
+      <button class="btn op" data-value="%">%</button>
+      <button class="btn op" data-value="/">÷</button>
+
+      <button class="btn" data-value="7">7</button>
+      <button class="btn" data-value="8">8</button>
+      <button class="btn" data-value="9">9</button>
+      <button class="btn op" data-value="*">×</button>
+
+      <button class="btn" data-value="4">4</button>
+      <button class="btn" data-value="5">5</button>
+      <button class="btn" data-value="6">6</button>
+      <button class="btn op" data-value="-">−</button>
+
+      <button class="btn" data-value="1">1</button>
+      <button class="btn" data-value="2">2</button>
+      <button class="btn" data-value="3">3</button>
+      <button class="btn op" data-value="+">+</button>
+
+      <button class="btn zero" data-value="0">0</button>
+      <button class="btn" data-value=".">.</button>
+      <button class="btn equals" data-action="equals">=</button>
+    </div>
+  </div>
+
+  <div class="footer-note">Made for students • Works offline</div>
+</div>
+
+<!-- ========== LOADING ========== -->
+<div id="loading-view">
+  <div class="loader"></div>
+  <div class="loading-text">Loading educational resources…</div>
+  <div class="loading-sub">Just a moment</div>
+</div>
+
+<!-- ========== GAMES ========== -->
+<div id="games-view">
+  <header>
+    <div class="logo">Study Resources</div>
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Search…" autocomplete="off">
+    </div>
+    <div class="categories" id="categoryBar">
+      <button class="cat-btn active" data-cat="all">All</button>
+      <button class="cat-btn" data-cat="action">Action</button>
+      <button class="cat-btn" data-cat="puzzle">Puzzle</button>
+      <button class="cat-btn" data-cat="idle">Idle</button>
+      <button class="cat-btn" data-cat="sports">Sports</button>
+      <button class="cat-btn" data-cat="multiplayer">Multi</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="games-grid" id="gamesGrid"></div>
+  </main>
+</div>
+
+<!-- Game Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Game</div>
+      <div class="modal-actions">
+        <button class="modal-btn" id="popupBtn">Popup</button>
+        <button class="modal-btn primary" id="fullscreenBtn">Fullscreen</button>
+        <button class="modal-btn" id="closeBtn">Close</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <iframe id="gameFrame" allowfullscreen allow="autoplay; fullscreen; gamepad; encrypted-media"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- Music (exact filename you sent) -->
+<audio id="bgMusic" loop preload="auto">
+  <source src="Mirrors (Bass Boosted Edit).mp3" type="audio/mpeg">
+</audio>
+
+<script>
+  // ===================== CALCULATOR =====================
+  const expressionEl = document.getElementById('expression');
+  const resultEl = document.getElementById('result');
+  let current = '0';
+  let expression = '';
+  let justCalculated = false;
+
+  function updateDisplay() {
+    expressionEl.textContent = expression;
+    resultEl.textContent = current;
+  }
+
+  function append(value) {
+    if (justCalculated) {
+      current = '0';
+      expression = '';
+      justCalculated = false;
+    }
+
+    if (current === '0' && value !== '.') {
+      current = value;
+    } else {
+      current += value;
+    }
+    updateDisplay();
+  }
+
+  function setOperator(op) {
+    if (justCalculated) {
+      expression = current;
+      justCalculated = false;
+    } else if (current !== '0' || expression === '') {
+      expression += current;
+    }
+
+    // replace last operator if user presses another
+    if (/[+\-*/]$/.test(expression)) {
+      expression = expression.slice(0, -1) + op;
+    } else {
+      expression += op;
+    }
+    current = '0';
+    updateDisplay();
+  }
+
+  function calculate() {
+    const full = (expression + current).replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
+
+    // SECRET CODE
+    if (full.replace(/\s/g, '') === '531800+1') {
+      unlockGames();
+      return;
+    }
+
+    try {
+      // basic safe eval
+      const result = Function('"use strict"; return (' + full + ')')();
+      expression = full + ' =';
+      current = String(Number(result.toFixed(8)).toString()); // clean float
+      justCalculated = true;
+      updateDisplay();
+    } catch {
+      current = 'Error';
+      expression = '';
+      justCalculated = true;
+      updateDisplay();
+    }
+  }
+
+  function clearAll() {
+    current = '0';
+    expression = '';
+    justCalculated = false;
+    updateDisplay();
+  }
+
+  function backspace() {
+    if (justCalculated) {
+      clearAll();
+      return;
+    }
+    if (current.length > 1) {
+      current = current.slice(0, -1);
+    } else {
+      current = '0';
+    }
+    updateDisplay();
+  }
+
+  // Button clicks
+  document.querySelectorAll('.btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const value = btn.dataset.value;
+      const action = btn.dataset.action;
+
+      if (action === 'clear') clearAll();
+      else if (action === 'back') backspace();
+      else if (action === 'equals') calculate();
+      else if (['+', '-', '*', '/', '%'].includes(value)) setOperator(value);
+      else append(value);
     });
+  });
+
+  // Keyboard support
+  document.addEventListener('keydown', e => {
+    if (document.getElementById('calc-view').style.display === 'none') return;
+
+    if (e.key >= '0' && e.key <= '9' || e.key === '.') append(e.key);
+    else if (['+', '-', '*', '/'].includes(e.key)) setOperator(e.key);
+    else if (e.key === 'Enter' || e.key === '=') calculate();
+    else if (e.key === 'Backspace') backspace();
+    else if (e.key === 'Escape' || e.key === 'c' || e.key === 'C') clearAll();
+  });
+
+  // ===================== UNLOCK =====================
+  function unlockGames() {
+    document.getElementById('calc-view').style.display = 'none';
+    const loading = document.getElementById('loading-view');
+    loading.classList.add('active');
+
+    // play the exact track you sent
+    const music = document.getElementById('bgMusic');
+    music.volume = 0.55;
+    music.play().catch(() => {}); // browsers sometimes block autoplay until interaction
+
+    // loading duration
+    setTimeout(() => {
+      loading.classList.remove('active');
+      document.getElementById('games-view').classList.add('active');
+      renderGames();
+    }, 3200);
+  }
+
+  // ===================== GAMES =====================
+  const games = [
+    { id: "slope", title: "Slope", category: "action", embed: "https://slopegame.io/slope.embed", thumb: "" },
+    { id: "2048", title: "2048", category: "puzzle", embed: "https://play2048.co/", thumb: "" },
+    { id: "cookie-clicker", title: "Cookie Clicker", category: "idle", embed: "https://orteil.dashnet.org/cookieclicker/", thumb: "" },
+    { id: "run3", title: "Run 3", category: "action", embed: "https://player03.com/run3/", thumb: "" },
+    { id: "tetris", title: "Tetris", category: "puzzle", embed: "https://tetris.com/play-tetris", thumb: "" },
+    { id: "snake", title: "Snake", category: "action", embed: "https://playsnake.org/", thumb: "" },
+    { id: "1v1lol", title: "1v1.LOL", category: "multiplayer", embed: "https://1v1.lol/", thumb: "" },
+    { id: "basketball-stars", title: "Basketball Stars", category: "sports", embed: "https://basketball-stars.io/", thumb: "" },
+    { id: "retro-bowl", title: "Retro Bowl", category: "sports", embed: "https://retrobowl.me/", thumb: "" },
+    { id: "geometry-dash", title: "Geometry Dash Lite", category: "action", embed: "https://scratch.mit.edu/projects/105500895/embed", thumb: "" },
+    { id: "flappy-bird", title: "Flappy Bird", category: "action", embed: "https://flappybird.io/", thumb: "" },
+    { id: "wordle", title: "Wordle", category: "puzzle", embed: "https://www.nytimes.com/games/wordle/index.html", thumb: "" }
+  ];
+
+  const grid = document.getElementById('gamesGrid');
+  const searchInput = document.getElementById('searchInput');
+  const categoryBar = document.getElementById('categoryBar');
+  const modal = document.getElementById('modal');
+  const gameFrame = document.getElementById('gameFrame');
+  const modalTitle = document.getElementById('modalTitle');
+  let currentGame = null;
+  let activeCategory = 'all';
+
+  function renderGames() {
+    const term = searchInput.value.toLowerCase().trim();
+    const filtered = games.filter(g => {
+      const matchesCat = activeCategory === 'all' || g.category === activeCategory;
+      const matchesSearch = !term || g.title.toLowerCase().includes(term);
+      return matchesCat && matchesSearch;
+    });
+
+    if (filtered.length === 0) {
+      grid.innerHTML = `<div class="no-results">No results</div>`;
+      return;
+    }
+
+    grid.innerHTML = filtered.map(g => `
+      <div class="game-card" data-id="${g.id}">
+        <div class="game-thumb" style="background:#1a1a1a;display:flex;align-items:center;justify-content:center;color:#444;font-size:0.8rem;">
+          ${g.title}
+        </div>
+        <div class="game-info">
+          <div class="game-title">${g.title}</div>
+          <div class="game-cat">${g.category}</div>
+        </div>
+      </div>
+    `).join('');
+
+    document.querySelectorAll('.game-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const game = games.find(g => g.id === card.dataset.id);
+        openGame(game);
+      });
+    });
+  }
+
+  function openGame(game) {
+    currentGame = game;
+    modalTitle.textContent = game.title;
+    gameFrame.src = game.embed;
+    modal.classList.add('open');
+  }
+
+  function closeModal() {
+    modal.classList.remove('open');
+    gameFrame.src = '';
+    currentGame = null;
+  }
+
+  categoryBar.addEventListener('click', e => {
+    if (e.target.classList.contains('cat-btn')) {
+      document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      activeCategory = e.target.dataset.cat;
+      renderGames();
+    }
+  });
+
+  searchInput.addEventListener('input', renderGames);
+
+  document.getElementById('closeBtn').addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+  document.getElementById('popupBtn').addEventListener('click', () => {
+    if (!currentGame) return;
+    window.open(currentGame.embed, '_blank', 'width=1100,height=700,menubar=no,toolbar=no,location=no');
+  });
+
+  document.getElementById('fullscreenBtn').addEventListener('click', () => {
+    const iframe = gameFrame;
+    if (iframe.requestFullscreen) iframe.requestFullscreen();
+    else if (iframe.webkitRequestFullscreen) iframe.webkitRequestFullscreen();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && modal.classList.contains('open')) closeModal();
+  });
 </script>
 </body>
 </html>
