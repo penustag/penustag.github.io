@@ -448,9 +448,18 @@
     padding: 14px 20px;
     border-bottom: 1px solid var(--border);
     background: #0d0d0d;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .modal-title { font-size: 1.1rem; font-weight: 600; }
+
+  .modal-hint {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    width: 100%;
+    order: 3;
+  }
 
   .modal-actions { display: flex; gap: 8px; }
 
@@ -580,7 +589,7 @@
   <header>
     <div class="logo">Study Resources</div>
     <div class="search-box">
-      <input type="text" id="searchInput" placeholder="Search games…" autocomplete="off">
+      <input type="text" id="searchInput" placeholder="Search…" autocomplete="off">
     </div>
     <div class="categories" id="categoryBar">
       <button class="cat-btn active" data-cat="all">All</button>
@@ -590,6 +599,8 @@
       <button class="cat-btn" data-cat="sports">Sports</button>
       <button class="cat-btn" data-cat="multiplayer">Multi</button>
       <button class="cat-btn" data-cat="arcade">Arcade</button>
+      <button class="cat-btn" data-cat="media">Media</button>
+      <button class="cat-btn" data-cat="tools">Tools</button>
     </div>
     <div class="header-right">
       <button class="change-music-btn" id="changeMusicBtn">Change Music</button>
@@ -611,6 +622,7 @@
         <button class="modal-btn primary" id="fullscreenBtn">Fullscreen</button>
         <button class="modal-btn" id="closeBtn">Close</button>
       </div>
+      <div class="modal-hint">Blank screen? Click "Open Popup" — a few sites won't load inside this window.</div>
     </div>
     <div class="modal-body">
       <iframe id="gameFrame" allowfullscreen allow="autoplay; fullscreen; gamepad; encrypted-media"></iframe>
@@ -870,20 +882,40 @@
     showMusicPicker(true);
   });
 
+  // ===================== LINK EXTRACTORS (YouTube / TikTok) =====================
+  function extractYouTubeId(input) {
+    const s = input.trim();
+    let m = s.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    if (m) return m[1];
+    if (/^[a-zA-Z0-9_-]{11}$/.test(s)) return s;
+    return null;
+  }
+
+  function extractTikTokId(input) {
+    const s = input.trim();
+    let m = s.match(/video\/(\d+)/);
+    if (m) return m[1];
+    if (/^\d{15,22}$/.test(s)) return s;
+    return null;
+  }
+
   // ===================== GAMES =====================
   const games = [
+    // -------- action / arcade / puzzle / idle / sports / multiplayer (original, two broken embeds swapped out) --------
     { id: "slope", title: "Slope", category: "action", desc: "Endless 3D runner. Don't fall off the edge.", embed: "https://slopegame.io/slope.embed" },
     { id: "2048", title: "2048", category: "puzzle", desc: "Slide tiles and merge numbers to reach 2048.", embed: "https://play2048.co/" },
     { id: "cookie", title: "Cookie Clicker", category: "idle", desc: "Bake cookies. Buy upgrades. Become unstoppable.", embed: "https://orteil.dashnet.org/cookieclicker/" },
     { id: "run3", title: "Run 3", category: "action", desc: "Run through space tunnels. Jump between platforms.", embed: "https://player03.com/run3/" },
-    { id: "tetris", title: "Tetris", category: "puzzle", desc: "Classic block stacking. Clear lines to score.", embed: "https://tetris.com/play-tetris" },
+    // Tetris: tetris.com (official site) blocks iframing — swapped for an embeddable clone
+    { id: "tetris", title: "Tetris", category: "puzzle", desc: "Classic block stacking. Clear lines to score.", embed: "https://www.freetetris.org/game.php" },
     { id: "snake", title: "Snake", category: "arcade", desc: "Eat, grow, don't hit yourself. Retro classic.", embed: "https://playsnake.org/" },
     { id: "2v2", title: "2v2.LOL", category: "multiplayer", desc: "Build and fight in this popular battle royale.", embed: "https://2v2.lol/" },
     { id: "basket", title: "Basketball Stars", category: "sports", desc: "1v1 basketball. Timing and skill based.", embed: "https://basketball-stars.io/" },
     { id: "retrobowl", title: "Retro Bowl", category: "sports", desc: "American football management + play.", embed: "https://retrobowl.me/" },
     { id: "geometry", title: "Geometry Dash Lite", category: "action", desc: "Rhythm based platformer. Jump to the beat.", embed: "https://scratch.mit.edu/projects/105500895/embed" },
     { id: "flappy", title: "Flappy Bird", category: "arcade", desc: "Tap to fly between pipes. Simple but hard.", embed: "https://flappybird.io/" },
-    { id: "wordle", title: "Wordle", category: "puzzle", desc: "Guess the 5-letter word in 6 tries.", embed: "https://www.nytimes.com/games/wordle/index.html" },
+    // Wordle: nytimes.com (official site) blocks iframing — swapped for an embeddable clone
+    { id: "wordle", title: "Wordle", category: "puzzle", desc: "Guess the 5-letter word in 6 tries.", embed: "https://wordlegame.org/" },
     { id: "tunnel", title: "Tunnel Rush", category: "action", desc: "Speed through a colorful tunnel. Avoid obstacles.", embed: "https://tunnelrush.app/" },
     { id: "moto", title: "Moto X3M", category: "action", desc: "Motocross stunts and crazy tracks.", embed: "https://moto-x3m.io/" },
     { id: "drift", title: "Drift Boss", category: "arcade", desc: "Tap to drift around corners. How far can you go?", embed: "https://driftboss.io/" },
@@ -893,7 +925,42 @@
     { id: "pacman", title: "Pac-Man", category: "arcade", desc: "Classic maze chomper. Eat dots, avoid ghosts.", embed: "https://pacman.live/" },
     { id: "minesweeper", title: "Minesweeper", category: "puzzle", desc: "Clear the board without hitting a mine.", embed: "https://minesweeper.online/" },
     { id: "sudoku", title: "Sudoku", category: "puzzle", desc: "Fill the grid. Classic number logic puzzle.", embed: "https://sudoku.com/" },
-    { id: "crossy", title: "Crossy Road", category: "arcade", desc: "Cross the road and rivers. Endless hopper.", embed: "https://crossyroad.io/" }
+    { id: "crossy", title: "Crossy Road", category: "arcade", desc: "Cross the road and rivers. Endless hopper.", embed: "https://crossyroad.io/" },
+
+    // -------- new additions ("a bunch more") --------
+    { id: "slither", title: "Slither.io", category: "multiplayer", desc: "Grow your snake by collecting orbs and outlasting others.", embed: "https://slither.io/" },
+    { id: "agario", title: "Agar.io", category: "multiplayer", desc: "Absorb smaller cells to grow into the biggest blob.", embed: "https://agar.io/" },
+    { id: "diepio", title: "Diep.io", category: "action", desc: "Upgrade your tank and battle shapes and other players.", embed: "https://diep.io/" },
+    { id: "paperio", title: "Paper.io 2", category: "multiplayer", desc: "Claim territory on the grid while dodging other players' trails.", embed: "https://paper-io.com/" },
+    { id: "shellshockers", title: "Shell Shockers", category: "action", desc: "Egg-based multiplayer FPS. Last shell standing wins.", embed: "https://shellshock.io/" },
+    { id: "krunker", title: "Krunker.io", category: "action", desc: "Fast, blocky multiplayer FPS with lots of maps and modes.", embed: "https://krunker.io/" },
+    { id: "smashkarts", title: "Smash Karts", category: "multiplayer", desc: "Kart battle arena with power-ups and weapons.", embed: "https://smashkarts.io/" },
+    { id: "1v1lol", title: "1v1.LOL", category: "multiplayer", desc: "Build, battle, and outlast opponents, Fortnite-style.", embed: "https://1v1.lol/" },
+    { id: "bloxdio", title: "Bloxd.io", category: "multiplayer", desc: "Blocky multiplayer minigames — parkour, PvP, and more.", embed: "https://bloxd.io/" },
+    { id: "wordsearch", title: "Word Search", category: "puzzle", desc: "Find hidden words in a letter grid against the clock.", embed: "https://thewordsearch.com/" },
+    { id: "nowgg", title: "Now.GG", category: "multiplayer", desc: "jus now.gg bru", embed: "https://now.gg/apps/a/19900/b.html/" },                                                  
+    // -------- media (link-paste players) -------- 
+    {
+      id: "youtube", title: "YouTube Video", category: "media",
+      desc: "Paste any YouTube link (or just the video ID) to watch it here.",
+      type: "link", promptText: "Paste a YouTube video link or ID:",
+      embedBase: "https://www.youtube.com/embed/", embedSuffix: "?autoplay=1",
+      extract: extractYouTubeId
+    },
+    {
+      id: "tiktok", title: "TikTok Video", category: "media",
+      desc: "Paste a TikTok video link to watch it here.",
+      type: "link", promptText: "Paste a TikTok video link:",
+      embedBase: "https://www.tiktok.com/embed/v2/", embedSuffix: "",
+      extract: extractTikTokId
+    },
+
+    // -------- tools --------
+    {
+      id: "acethinker", title: "AceThinker Screen Recorder", category: "tools",
+      desc: "Free browser-based screen & audio recorder — handy for saving tutorials or presentations. Needs a one-time small launcher the first time you record, so Popup works better than Play here.",
+      embed: "https://acethinker.com/main"
+    }
   ];
 
   const grid = document.getElementById('gamesGrid');
@@ -915,7 +982,7 @@
     });
 
     if (filtered.length === 0) {
-      grid.innerHTML = `<div class="no-results">No games found</div>`;
+      grid.innerHTML = `<div class="no-results">No results found</div>`;
       return;
     }
 
@@ -935,19 +1002,44 @@
     `).join('');
   }
 
+  // Resolves the real URL to load for a game, prompting for a link first
+  // when the entry needs one (YouTube / TikTok). Returns null if the
+  // user cancels or the link couldn't be read.
+  function resolveUrl(game) {
+    if (game.type !== 'link') return game.embed;
+
+    const input = window.prompt(game.promptText || 'Paste the link:');
+    if (!input) return null;
+
+    const id = game.extract(input);
+    if (!id) {
+      alert("Couldn't read that link — please double check it and try again.");
+      return null;
+    }
+    return game.embedBase + id + (game.embedSuffix || '');
+  }
+
   window.openEmbed = function(id) {
     const game = games.find(g => g.id === id);
     if (!game) return;
+
+    const url = resolveUrl(game);
+    if (!url) return;
+
     currentGame = game;
     modalTitle.textContent = game.title;
-    gameFrame.src = game.embed;
+    gameFrame.src = url;
     modal.classList.add('open');
   };
 
   window.openPopup = function(id) {
     const game = games.find(g => g.id === id);
     if (!game) return;
-    window.open(game.embed, '_blank', 'width=1200,height=800,menubar=no,toolbar=no,location=no,status=no');
+
+    const url = resolveUrl(game);
+    if (!url) return;
+
+    window.open(url, '_blank', 'width=1200,height=800,menubar=no,toolbar=no,location=no,status=no');
   };
 
   function closeModal() {
