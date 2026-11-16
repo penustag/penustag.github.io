@@ -696,6 +696,7 @@
   function appendNumber(num) {
     if (resetNext) {
       current = '0';
+      expression = '';
       resetNext = false;
     }
     if (current === '0' && num !== '.') current = num;
@@ -705,25 +706,37 @@
   }
 
   function setOperator(op) {
-    if (resetNext) resetNext = false;
-
-    if (expression && !/[+\-*/]$/.test(expression)) {
-      expression += current;
-    } else if (!expression) {
-      expression = current;
+    // Recover cleanly if the display is showing an error
+    if (current === 'Error') {
+      current = '0';
+      expression = '';
+      resetNext = false;
     }
 
-    if (/[+\-*/]$/.test(expression)) {
+    if (resetNext) {
+      // Continue the expression from the previous result
+      expression = current + op;
+      current = '0';
+      resetNext = false;
+      updateDisplay();
+      return;
+    }
+
+    if (expression && /[+\-*/]$/.test(expression) && current === '0') {
+      // No new number typed since the last operator - just swap it
       expression = expression.slice(0, -1) + op;
-    } else {
-      expression += op;
+      updateDisplay();
+      return;
     }
 
+    expression += current + op;
     current = '0';
     updateDisplay();
   }
 
   function calculate() {
+    if (resetNext) return; // already showing a final result - nothing new to compute
+
     let full = (expression + current)
       .replace(/×/g, '*')
       .replace(/÷/g, '/')
